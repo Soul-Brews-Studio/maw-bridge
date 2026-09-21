@@ -259,6 +259,7 @@ export default function App() {
         <span><kbd>t</kbd> token</span>
         <span><kbd>⏎</kbd> terminal</span>
         <span><kbd>?</kbd> keys</span>
+        <span className="build" title="build">{__BUILD_ID__}</span>
       </footer>
 
       {notice && <p className="notice" role="status">{notice}</p>}
