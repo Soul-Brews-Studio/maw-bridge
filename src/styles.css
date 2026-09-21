@@ -1,0 +1,509 @@
+@import "@fontsource-variable/archivo";
+@import "@fontsource-variable/jetbrains-mono";
+
+/*
+  A departure hall, not a control room. The surface is warm near-black because
+  a Solari board is lit from in front and its lacquer holds the light; a cool
+  grey would read as a screen. Amber is the phosphor of the split-flap era and
+  it is the only saturated hue here, so a blocked agent can own red outright.
+*/
+
+:root {
+  --hall: #0b0908;
+  --rail: #14100c;
+  --flap: #1b1610;
+  --flap-edge: #0a0806;
+  --seam: #070505;
+
+  --amber: #ffb224;
+  --amber-dim: #c98a1c;
+  --ink: #f5ead8;
+  --ink-soft: #b3a48c;
+  --ink-faint: #8e8270;
+
+  --working: #ffb224;
+  --blocked: #ff6a3d;
+  --idle: #8a9a8f;
+  --done: #7fb069;
+  --unknown: #6f6557;
+
+  --row: 2.75rem;
+  --gap: 1px;
+
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(120% 80% at 50% -10%, #1a140d 0%, transparent 60%),
+    var(--hall);
+  color: var(--ink);
+  font-family: "Archivo Variable", system-ui, sans-serif;
+  font-variation-settings: "wdth" 92;
+  min-height: 100vh;
+}
+
+::selection { background: var(--amber); color: #120d06; }
+
+:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--seam); }
+::-webkit-scrollbar-thumb { background: #332a20; border: 2px solid var(--seam); border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: #4a3d2d; }
+
+kbd {
+  font-family: "JetBrains Mono Variable", ui-monospace, monospace;
+  font-size: 0.6875rem;
+  padding: 0.1em 0.4em;
+  border: 1px solid #3a2f22;
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  background: #1d1710;
+  color: var(--ink-soft);
+}
+
+code {
+  font-family: "JetBrains Mono Variable", ui-monospace, monospace;
+  font-size: 0.8125em;
+  color: var(--amber-dim);
+}
+
+.app {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
+/* ── Masthead ───────────────────────────────────────────────────────── */
+
+.masthead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 2rem;
+  flex-wrap: wrap;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid #241d15;
+}
+
+.masthead h1 { margin: 0; }
+
+.wordmark {
+  display: inline-flex;
+  font-family: "JetBrains Mono Variable", ui-monospace, monospace;
+  font-size: clamp(1.75rem, 5vw, 2.75rem);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  color: var(--amber);
+}
+
+.tally {
+  display: flex;
+  gap: 1.75rem;
+  margin: 0;
+}
+
+.tally div { display: flex; flex-direction: column; gap: 0.15rem; }
+
+.tally dt {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ink-faint);
+}
+
+.tally dd {
+  margin: 0;
+  font-family: "JetBrains Mono Variable", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.tally [data-alert] dd { color: var(--blocked); }
+
+.link { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+
+.link-state {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink-soft);
+}
+
+.link-host {
+  font-family: "JetBrains Mono Variable", ui-monospace, monospace;
+  font-size: 0.6875rem;
+  color: var(--ink-faint);
+}
+
+.lamp {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--unknown);
+  flex: none;
+}
+
+.link[data-link="live"] .lamp { background: var(--done); box-shadow: 0 0 0 3px #7fb06926; }
+.link[data-link="readonly"] .lamp { background: var(--amber); box-shadow: 0 0 0 3px #ffb22426; }
+.link[data-link="connecting"] .lamp { background: var(--idle); animation: pulse 1.4s ease-in-out infinite; }
+.link[data-link="down"] .lamp,
+.link[data-link="blocked"] .lamp { background: var(--blocked); box-shadow: 0 0 0 3px #ff6a3d26; }
+
+@keyframes pulse { 50% { opacity: 0.35; } }
+
+/* ── Controls ───────────────────────────────────────────────────────── */
+
+.controls {
+  display: flex;
+  gap: 0.5rem;
+  margin: 1.25rem 0;
+  flex-wrap: wrap;
+}
+
+.filter {
+  flex: 1 1 18rem;
+  min-width: 0;
+  padding: 0.55rem 0.75rem;
+  background: var(--rail);
+  border: 1px solid #2a2118;
+  border-radius: 3px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.875rem;
+  caret-color: var(--amber);
+}
+
+.filter::placeholder { color: var(--ink-faint); }
+.filter:focus-visible { border-color: var(--amber); outline-offset: -1px; }
+
+.controls button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0.8rem;
+  background: var(--rail);
+  border: 1px solid #2a2118;
+  border-radius: 3px;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+
+.controls button:hover:not(:disabled) { color: var(--amber); border-color: #4a3a22; background: #1c1610; }
+.controls button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── The board ──────────────────────────────────────────────────────── */
+
+.board {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  background: var(--seam);
+  border: 1px solid #241d15;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.board-head,
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 6rem minmax(0, 12rem) 9.5rem;
+  gap: 1rem;
+  align-items: center;
+  padding: 0 1rem;
+  text-align: left;
+}
+
+.board-head {
+  padding-block: 0.6rem;
+  background: var(--hall);
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ink-faint);
+}
+
+.col-status { justify-self: end; }
+
+.row {
+  min-height: var(--row);
+  background: var(--rail);
+  border: 0;
+  border-left: 2px solid transparent;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  /* The seam across a Solari flap: one dark line through the middle of the row. */
+  background-image: linear-gradient(to bottom, transparent calc(50% - 1px), #00000059 50%, transparent calc(50% + 1px));
+  transition: background-color 120ms ease;
+}
+
+.row:hover { background-color: #1a150f; }
+.row[data-cursor] { background-color: #201910; border-left-color: var(--amber); }
+
+.cell-folder,
+.cell-engine,
+.cell-status {
+  font-family: "JetBrains Mono Variable", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.cell-folder { color: var(--ink); font-weight: 600; }
+.cell-engine { color: var(--ink-soft); }
+
+.cell-window {
+  font-size: 0.8125rem;
+  color: var(--ink-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cell-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.row[data-status="working"] .cell-status { color: var(--working); }
+.row[data-status="working"] .lamp { background: var(--working); }
+.row[data-status="blocked"] .cell-status { color: var(--blocked); }
+.row[data-status="blocked"] .lamp { background: var(--blocked); }
+.row[data-status="idle"] .cell-status { color: var(--idle); }
+.row[data-status="idle"] .lamp { background: var(--idle); }
+.row[data-status="done"] .cell-status { color: var(--done); }
+.row[data-status="done"] .lamp { background: var(--done); }
+.row[data-status="unknown"] .cell-status { color: var(--unknown); }
+
+/* A drum mid-rotation catches the light on its leading edge. */
+.flap { display: inline-block; }
+
+[data-settling] .flap {
+  background: linear-gradient(to bottom, var(--flap) 0 50%, var(--flap-edge) 50% 100%);
+  box-shadow: 0 1px 2px #0000006b;
+  border-radius: 1px;
+}
+
+/* ── Viewport ───────────────────────────────────────────────────────── */
+
+.viewport {
+  margin-top: 1.5rem;
+  background: var(--rail);
+  border: 1px solid #241d15;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.viewport-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.6rem 1rem;
+  background: var(--hall);
+  border-bottom: 1px solid #241d15;
+}
+
+.viewport-target { font-weight: 600; font-size: 0.875rem; }
+
+.viewport-path {
+  font-family: "JetBrains Mono Variable", ui-monospace, monospace;
+  font-size: 0.6875rem;
+  color: var(--ink-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.viewport pre {
+  margin: 0;
+  padding: 1rem;
+  max-height: 18rem;
+  overflow: auto;
+  font-family: "JetBrains Mono Variable", ui-monospace, monospace;
+  font-size: 0.75rem;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ── Messages ───────────────────────────────────────────────────────── */
+
+.alarm,
+.empty {
+  margin: 1.25rem 0;
+  padding: 0.85rem 1rem;
+  border-radius: 3px;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  max-width: 72ch;
+}
+
+.alarm { background: #1d120d; border: 1px solid #4a2418; color: #ffbfa8; }
+.empty { background: var(--rail); border: 1px solid #241d15; color: var(--ink-soft); }
+
+.notice {
+  position: fixed;
+  left: 50%;
+  bottom: 1.5rem;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 0.6rem 1rem;
+  background: #221a10;
+  border: 1px solid #4a3a22;
+  border-radius: 3px;
+  color: var(--ink);
+  font-size: 0.8125rem;
+  box-shadow: 0 8px 24px #00000080;
+}
+
+.legend {
+  display: flex;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  margin-top: 1.5rem;
+  font-size: 0.6875rem;
+  color: var(--ink-faint);
+}
+
+.legend span { display: inline-flex; align-items: center; gap: 0.3rem; }
+
+/* ── Sheet ──────────────────────────────────────────────────────────── */
+
+.sheet-scrim {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: #060404cc;
+  backdrop-filter: blur(3px);
+}
+
+.sheet {
+  position: relative;
+  width: min(34rem, 100%);
+  padding: 1.75rem;
+  background: var(--rail);
+  border: 1px solid #3a2f22;
+  border-radius: 5px;
+  box-shadow: 0 24px 60px #000000a6;
+}
+
+.sheet h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.125rem;
+  letter-spacing: -0.02em;
+}
+
+.sheet p {
+  margin: 0 0 1rem;
+  font-size: 0.8125rem;
+  line-height: 1.65;
+  color: var(--ink-soft);
+  max-width: 62ch;
+}
+
+.sheet input,
+.sheet textarea {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  background: var(--hall);
+  border: 1px solid #2a2118;
+  border-radius: 3px;
+  color: var(--ink);
+  font-family: "JetBrains Mono Variable", ui-monospace, monospace;
+  font-size: 0.8125rem;
+  caret-color: var(--amber);
+  resize: vertical;
+}
+
+.sheet input::placeholder,
+.sheet textarea::placeholder { color: var(--ink-faint); }
+
+.sheet button[type="submit"] {
+  margin-top: 0.85rem;
+  padding: 0.55rem 1rem;
+  background: var(--amber);
+  border: 0;
+  border-radius: 3px;
+  color: #140d04;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sheet button[type="submit"]:hover { background: #ffc251; }
+
+.sheet-close {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  background: transparent;
+  border: 0;
+  border-radius: 3px;
+  color: var(--ink-faint);
+  cursor: pointer;
+}
+
+.sheet-close:hover { color: var(--ink); background: #241d15; }
+
+.keymap { margin: 0 0 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
+.keymap div { display: grid; grid-template-columns: 7rem 1fr; gap: 0.75rem; align-items: baseline; }
+.keymap dt { margin: 0; }
+.keymap dd { margin: 0; font-size: 0.8125rem; color: var(--ink-soft); }
+
+/* ── Narrow ─────────────────────────────────────────────────────────── */
+
+@media (max-width: 860px) {
+  .app { padding: 1.25rem 1rem 3rem; }
+  .masthead { gap: 1rem; }
+  .tally { gap: 1.25rem; }
+  .board-head { display: none; }
+  .row {
+    grid-template-columns: minmax(0, 1fr) 8.5rem;
+    grid-template-areas: "folder status" "engine engine";
+    row-gap: 0.2rem;
+    padding-block: 0.6rem;
+  }
+  .cell-folder { grid-area: folder; }
+  .cell-status { grid-area: status; }
+  .cell-engine { grid-area: engine; }
+  .cell-window { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+.viewport-target-id {
+  margin-left: auto;
+  font-family: "JetBrains Mono Variable", ui-monospace, monospace;
+  font-size: 0.625rem;
+  color: var(--unknown);
+  white-space: nowrap;
+}
