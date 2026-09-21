@@ -27,7 +27,7 @@
   --done: #7fb069;
   --unknown: #6f6557;
 
-  --row: 2.75rem;
+  --row: 7rem;
   --gap: 1px;
 
   color-scheme: dark;
@@ -221,7 +221,7 @@ code {
 .board-head,
 .row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 6rem minmax(0, 12rem) 9.5rem;
+  grid-template-columns: 6rem minmax(0, 1fr) 7rem 9.5rem;
   gap: 1rem;
   align-items: center;
   padding: 0 1rem;
@@ -268,7 +268,7 @@ code {
 .cell-folder { color: var(--ink); font-weight: 600; }
 .cell-engine { color: var(--ink-soft); }
 
-.cell-window {
+._unused_cell_window {
   font-size: 0.8125rem;
   color: var(--ink-faint);
   overflow: hidden;
@@ -486,14 +486,16 @@ code {
   .board-head { display: none; }
   .row {
     grid-template-columns: minmax(0, 1fr) 8.5rem;
-    grid-template-areas: "folder status" "engine engine";
+    grid-template-areas: "folder status" "engine engine" "pane pane";
     row-gap: 0.2rem;
     padding-block: 0.6rem;
   }
+  .cell-pane { grid-area: pane; }
+  .pane-cell { --pane-size: 5rem; }
   .cell-folder { grid-area: folder; }
   .cell-status { grid-area: status; }
   .cell-engine { grid-area: engine; }
-  .cell-window { display: none; }
+  ._unused_cell_window { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -506,4 +508,222 @@ code {
   font-size: 0.625rem;
   color: var(--unknown);
   white-space: nowrap;
+}
+
+.cell-live {
+  font-family: "JetBrains Mono Variable", ui-monospace, monospace;
+  font-size: 0.75rem;
+  color: var(--ink-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row[data-cursor] .cell-live { color: var(--ink-soft); }
+
+.link-stream {
+  font-size: 0.5625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  padding: 0.1rem 0.35rem;
+  border: 1px solid #2a2118;
+  border-radius: 2px;
+  color: var(--ink-faint);
+}
+
+.link-stream[data-stream="open"] { color: var(--done); border-color: #2f4a27; }
+.link-stream[data-stream="closed"] { color: var(--blocked); border-color: #4a2418; }
+
+
+/* ── Pane cell — a scaled miniature of the whole pane ───────────────── */
+
+.cell-pane { display: block; min-width: 0; }
+
+/* A window cut into the flap, not a card sitting on it. */
+.pane-cell {
+  --pane-size: 6rem;
+  position: relative;
+  display: block;
+  width: var(--pane-size);
+  aspect-ratio: 1;
+  background: #080605;
+  border: 1px solid #241d15;
+  border-radius: 2px;
+  box-shadow: inset 0 1px 3px #000000a6;
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 120ms ease;
+}
+
+.pane-cell:hover { border-color: var(--amber); }
+.pane-cell:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+.row[data-cursor] .pane-cell { border-color: #4a3a22; }
+
+/* True terminal metrics inside, then the whole block is scaled to the square.
+   Bottom-left origin keeps the newest line against the edge. */
+.pane-scale {
+  position: absolute;
+  bottom: 0.2rem;
+  left: 0.25rem;
+  display: block;
+  width: var(--pane-w);
+  max-height: var(--pane-h);
+  overflow: hidden;
+  font-family: "JetBrains Mono Variable", ui-monospace, monospace;
+  font-size: 9px;
+  line-height: 1.35;
+  color: #a2937a;
+  white-space: pre;
+  transform: scale(calc((var(--pane-size) - 0.5rem) / var(--pane-w)));
+  transform-origin: bottom left;
+  pointer-events: none;
+}
+
+.row[data-status="working"] .pane-scale { color: #c9a86a; }
+.row[data-status="blocked"] .pane-scale { color: #c98a72; }
+
+.pane-cell[data-empty] { display: grid; place-items: center; }
+
+.pane-quiet {
+  font-family: "JetBrains Mono Variable", ui-monospace, monospace;
+  font-size: 0.5625rem;
+  color: var(--unknown);
+}
+
+/* The board's own seam does not cross the window. */
+.row[data-cursor] .pane-cell { box-shadow: inset 0 1px 3px #000000a6, 0 0 0 1px #4a3a2233; }
+
+/* ── Terminal ───────────────────────────────────────────────────────── */
+
+.terminal-scrim {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 2rem 1.5rem;
+  background: #060404d9;
+  backdrop-filter: blur(4px);
+  z-index: 40;
+}
+
+.terminal {
+  display: flex;
+  flex-direction: column;
+  width: min(92rem, 100%);
+  height: min(80vh, 54rem);
+  background: #080605;
+  border: 1px solid #3a2f22;
+  border-radius: 4px;
+  box-shadow: 0 32px 80px #000000b3;
+  overflow: hidden;
+}
+
+.terminal-head {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.7rem 1rem;
+  background: var(--rail);
+  border-bottom: 1px solid #241d15;
+  flex: none;
+}
+
+.terminal-title { font-weight: 600; font-size: 0.9375rem; letter-spacing: -0.01em; }
+
+.terminal-meta {
+  font-family: "JetBrains Mono Variable", ui-monospace, monospace;
+  font-size: 0.6875rem;
+  color: var(--ink-faint);
+}
+
+.terminal-path { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.terminal-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink-soft);
+}
+
+.terminal-status[data-status="working"] { color: var(--working); }
+.terminal-status[data-status="working"] .lamp { background: var(--working); }
+.terminal-status[data-status="blocked"] { color: var(--blocked); }
+.terminal-status[data-status="blocked"] .lamp { background: var(--blocked); }
+.terminal-status[data-status="idle"] .lamp { background: var(--idle); }
+.terminal-status[data-status="done"] .lamp { background: var(--done); }
+
+.terminal-close {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  background: transparent;
+  border: 0;
+  border-radius: 3px;
+  color: var(--ink-faint);
+  cursor: pointer;
+  flex: none;
+}
+
+.terminal-close:hover { color: var(--ink); background: #241d15; }
+
+.terminal-body {
+  flex: 1;
+  margin: 0;
+  padding: 1rem 1.25rem;
+  overflow: auto;
+  font-family: "JetBrains Mono Variable", ui-monospace, monospace;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.terminal-compose {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.7rem 1rem;
+  background: var(--rail);
+  border-top: 1px solid #241d15;
+  flex: none;
+}
+
+.terminal-compose input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.5rem 0.7rem;
+  background: var(--hall);
+  border: 1px solid #2a2118;
+  border-radius: 3px;
+  color: var(--ink);
+  font-family: "JetBrains Mono Variable", ui-monospace, monospace;
+  font-size: 0.8125rem;
+  caret-color: var(--amber);
+}
+
+.terminal-compose input::placeholder { color: var(--ink-faint); }
+.terminal-compose input:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.terminal-compose button {
+  padding: 0.5rem 1rem;
+  background: var(--amber);
+  border: 0;
+  border-radius: 3px;
+  color: #140d04;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.terminal-compose button:disabled { background: #3a2f22; color: var(--ink-faint); cursor: not-allowed; }
+
+@media (max-width: 860px) {
+  .terminal-scrim { padding: 0; }
+  .terminal { width: 100%; height: 100%; border: 0; border-radius: 0; }
+  .terminal-path { display: none; }
 }

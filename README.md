@@ -1,7 +1,8 @@
 # Bridge
 
 A departure board for a fleet of agents. It reads `maw herdr serve` and shows
-every pane as a row that flips when its status changes.
+every pane as a row that flips when its status changes — with a live miniature
+of that pane's terminal on the left of every row.
 
 ![board](docs/board.png)
 
@@ -26,6 +27,27 @@ maw herdr serve --insecure-no-token --listen 127.0.0.1:3488 --demo-minutes 30
 maw herdr serve --token-file ~/.maw-herdr-token --listen 127.0.0.1:3457
 ```
 
+## The pane cell
+
+Every row carries a square miniature of the real terminal, streaming. It is laid
+out at true terminal width and then scaled down, so the words are not readable
+and are not meant to be: what carries is the *shape* of the output, which is how
+you tell a pane that is building from one that is waiting.
+
+Click it, or press <kbd>⏎</kbd> on the row, for the full pane at full size, still
+streaming, with a line to type back into it.
+
+## Streaming
+
+The board holds one WebSocket to the backend, the same one god uses. The roster
+arrives on connect, every visible row gets a live 15-line preview, and whichever
+pane is open streams 80 lines. If the socket cannot open — an old backend, a
+closed demo window — it falls back to polling and says `polling` in the header
+rather than pretending.
+
+With an operator token it authenticates with a single-use ticket. Without one it
+opens the socket unauthenticated, which a tokenless demo server accepts read-only.
+
 ## Keys
 
 | Key | Does |
@@ -33,6 +55,7 @@ maw herdr serve --token-file ~/.maw-herdr-token --listen 127.0.0.1:3457
 | <kbd>/</kbd> | Filter by folder, session, or engine |
 | <kbd>j</kbd> <kbd>k</kbd> | Move the cursor |
 | <kbd>g</kbd> <kbd>G</kbd> | First and last row |
+| <kbd>⏎</kbd> | Open the full terminal |
 | <kbd>w</kbd> | Wake the selected agent |
 | <kbd>s</kbd> | Send it a message |
 | <kbd>h</kbd> <kbd>t</kbd> | Backend, token |

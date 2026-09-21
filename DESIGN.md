@@ -35,6 +35,13 @@ red outright.
   the drums must be fixed-width to flip in place.
 - Tabular numerals on all counts.
 
+## The pane cell
+A square window cut into the flap: inset, unlit, with the board's own seam
+behind it. Inside, the pane's last 24 lines are laid out at true terminal
+metrics (80 columns, 9px) and the whole block is scaled to the square with a
+bottom-left origin, so the newest line sits against the edge the way it does in
+a real terminal. Only the shape survives at that size, which is the point.
+
 ## Motion
 One authored moment: the flap. Each drum steps at 42ms through
 ` A-Z 0-9 -·:/`, so columns settle left to right because earlier drums have

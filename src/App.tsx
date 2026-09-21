@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Board } from "./components/Board";
+import { Terminal } from "./components/Terminal";
 import { FlapText } from "./components/FlapText";
 import { IconBolt, IconClose, IconKey, IconLink, IconSend } from "./components/icons";
 import {
-  ApiError, backendOrigin, capture, clearBackendOrigin, fetchFleet, mixedContentBlocked,
-  operatorToken, send, setBackendOrigin, setOperatorToken, wake,
-  type Agent, type Fleet,
+  ApiError, backendOrigin, clearBackendOrigin, fetchFleet, mixedContentBlocked,
+  operatorToken, send, setBackendOrigin, setOperatorToken, toFleet, wake,
+  type Agent, type Fleet, type RawSession,
 } from "./lib/api";
+import { FleetSocket, type SocketState } from "./lib/socket";
 
 type Link = "connecting" | "live" | "readonly" | "down" | "blocked";
 
@@ -17,6 +19,12 @@ export default function App() {
   const [fleet, setFleet] = useState<Fleet>({ agents: [], sessions: 0 });
   const [link, setLink] = useState<Link>("connecting");
   const [detail, setDetail] = useState<string | null>(null);
+  const [previews, setPreviews] = useState<Record<string, string>>({});
+  const [streaming, setStreaming] = useState<SocketState>("connecting");
+  const socketRef = useRef<FleetSocket | null>(null);
+  const selectedRef = useRef("");
+  const [reconnectKey, setReconnectKey] = useState(0);
+  const [terminal, setTerminal] = useState<Agent | null>(null);
   const [query, setQuery] = useState("");
   const [cursor, setCursor] = useState(0);
   const [panel, setPanel] = useState<"none" | "host" | "token" | "help" | "send">("none");
@@ -51,21 +59,55 @@ export default function App() {
     }
   }, []);
 
+  // One HTTP read on mount so the board is populated even where the socket
+  // cannot open, then the socket takes over and the poll stops.
   useEffect(() => {
     const controller = new AbortController();
     void poll(controller.signal);
-    const id = setInterval(() => { void poll(controller.signal); }, POLL_MS);
+    const id = setInterval(() => {
+      if (socketRef.current && streamingRef.current === "open") return;
+      void poll(controller.signal);
+    }, POLL_MS);
     return () => { controller.abort(); clearInterval(id); };
   }, [poll]);
 
+  const streamingRef = useRef<SocketState>("connecting");
+  useEffect(() => { streamingRef.current = streaming; }, [streaming]);
+
   useEffect(() => {
-    if (!selected) { setDetail(null); return; }
-    const controller = new AbortController();
-    capture(selected.target, controller.signal)
-      .then(setDetail)
-      .catch(() => { if (!controller.signal.aborted) setDetail(null); });
-    return () => controller.abort();
-  }, [selected?.target]);
+    if (mixedContentBlocked()) return;
+    const socket = new FleetSocket({
+      onSessions: (sessions) => {
+        setFleet(toFleet(sessions as RawSession[]));
+        setLink(operatorToken() ? "live" : "readonly");
+      },
+      onPreviews: (data) => setPreviews(current => ({ ...current, ...data })),
+      onCapture: (target, content) => {
+        if (target === selectedRef.current) setDetail(content);
+      },
+      onState: setStreaming,
+      onError: (reason) => {
+        // A write refused for want of a token is the expected resting state of
+        // a read-only board, not something to shout about.
+        if (reason === "operator_token_required_for_writes") setLink("readonly");
+      },
+    });
+    socketRef.current = socket;
+    void socket.connect();
+    return () => { socket.close(); socketRef.current = null; };
+  }, [reconnectKey]);
+
+  // The selected pane streams at 80 lines; the visible rows at 15.
+  const streamTarget = terminal?.target ?? selected?.target ?? "";
+  useEffect(() => {
+    selectedRef.current = streamTarget;
+    setDetail(null);
+    if (streamTarget) socketRef.current?.select(streamTarget);
+  }, [streamTarget]);
+
+  useEffect(() => {
+    socketRef.current?.subscribePreviews(agents.slice(0, 16).map(agent => agent.target));
+  }, [agents.map(agent => agent.target).join("\u0000")]);
 
   const flash = useCallback((message: string) => {
     setNotice(message);
@@ -87,12 +129,15 @@ export default function App() {
       const typing = event.target instanceof HTMLInputElement
         || event.target instanceof HTMLTextAreaElement;
       if (event.key === "Escape") {
+        if (terminal) { setTerminal(null); return; }
         if (panel !== "none") { setPanel("none"); return; }
         if (typing) { (event.target as HTMLElement).blur(); return; }
         if (query) setQuery("");
         return;
       }
       if (typing || event.metaKey || event.ctrlKey || event.altKey) return;
+      if (terminal) return;
+      if (event.key === "Enter") { event.preventDefault(); if (selected) setTerminal(selected); return; }
       if (event.key === "/") { event.preventDefault(); filterRef.current?.focus(); return; }
       if (event.key === "j" || event.key === "ArrowDown") {
         event.preventDefault(); setCursor(c => Math.min(c + 1, agents.length - 1)); return;
@@ -110,11 +155,17 @@ export default function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [agents.length, panel, query, runWake]);
+  }, [agents.length, panel, query, runWake, terminal, selected]);
 
   useEffect(() => {
     if (panel === "send") composeRef.current?.focus();
   }, [panel]);
+
+  useEffect(() => {
+    if (!terminal) return;
+    const fresh = fleet.agents.find(agent => agent.target === terminal.target);
+    if (fresh && fresh.status !== terminal.status) setTerminal(fresh);
+  }, [fleet.agents, terminal]);
 
   const origin = backendOrigin();
   const counts = useMemo(() => ({
@@ -145,6 +196,9 @@ export default function App() {
               : link === "connecting" ? "Connecting" : link === "blocked" ? "Blocked" : "No signal"}
           </span>
           <span className="link-host">{origin ?? "same origin"}</span>
+          <span className="link-stream" data-stream={streaming}>
+            {streaming === "open" ? "streaming" : streaming === "connecting" ? "opening" : "polling"}
+          </span>
         </div>
       </header>
 
@@ -186,19 +240,15 @@ export default function App() {
             : `Nothing matches “${query}”.`}
         </p>
       ) : (
-        <Board agents={agents} cursor={Math.min(cursor, agents.length - 1)} onSelect={setCursor} />
+        <Board
+          agents={agents}
+          cursor={Math.min(cursor, agents.length - 1)}
+          onSelect={setCursor}
+          previews={previews}
+          onOpenTerminal={setTerminal}
+        />
       )}
 
-      {selected && (
-        <section className="viewport" aria-label={`Output from ${selected.target}`}>
-          <div className="viewport-head">
-            <span className="viewport-target">{selected.folder ?? selected.session}</span>
-            <span className="viewport-path">{selected.cwd ?? "\u2014"}</span>
-            <span className="viewport-target-id">{selected.target}</span>
-          </div>
-          <pre>{detail ?? "…"}</pre>
-        </section>
-      )}
 
       <footer className="legend">
         <span><kbd>/</kbd> filter</span>
@@ -207,10 +257,26 @@ export default function App() {
         <span><kbd>s</kbd> send</span>
         <span><kbd>h</kbd> host</span>
         <span><kbd>t</kbd> token</span>
+        <span><kbd>⏎</kbd> terminal</span>
         <span><kbd>?</kbd> keys</span>
       </footer>
 
       {notice && <p className="notice" role="status">{notice}</p>}
+
+      {terminal && (
+        <Terminal
+          agent={terminal}
+          content={detail}
+          readOnly={!operatorToken()}
+          onClose={() => setTerminal(null)}
+          onSend={text => {
+            void send(terminal.target, text)
+              .then(() => flash(`sent to ${terminal.folder ?? terminal.target}`))
+              .catch(error => flash(error instanceof ApiError && error.status === 401
+                ? "writes need an operator token — press t" : "send failed"));
+          }}
+        />
+      )}
 
       {panel !== "none" && (
         <div className="sheet-scrim" onClick={event => { if (event.target === event.currentTarget) setPanel("none"); }}>
@@ -224,9 +290,9 @@ export default function App() {
                 event.preventDefault();
                 const value = new FormData(event.currentTarget).get("host");
                 if (typeof value === "string" && value.trim()) {
-                  try { setBackendOrigin(value); setPanel("none"); flash("host set"); }
+                  try { setBackendOrigin(value); setPanel("none"); setReconnectKey(k => k + 1); flash("host set"); }
                   catch { flash("that is not a reachable address"); }
-                } else { clearBackendOrigin(); setPanel("none"); flash("back to same origin"); }
+                } else { clearBackendOrigin(); setPanel("none"); setReconnectKey(k => k + 1); flash("back to same origin"); }
               }}>
                 <h2>Backend</h2>
                 <p>Where <code>maw herdr serve</code> is listening. Blank goes back to this page's own origin.</p>
@@ -242,6 +308,7 @@ export default function App() {
                 const value = new FormData(event.currentTarget).get("token");
                 setOperatorToken(typeof value === "string" ? value : "");
                 setPanel("none");
+                setReconnectKey(k => k + 1);
                 flash(operatorToken() ? "token stored" : "token cleared");
               }}>
                 <h2>Operator token</h2>

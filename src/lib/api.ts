@@ -124,11 +124,11 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-interface RawWindow {
+export interface RawWindow {
   index: number; name: string; active: boolean;
   cwd?: string; status?: string; agent?: string;
 }
-interface RawSession { name: string; windows: RawWindow[]; source?: string }
+export interface RawSession { name: string; windows: RawWindow[]; source?: string }
 
 function paneStatus(value: string | undefined): PaneStatus {
   return value === "working" || value === "idle" || value === "blocked" || value === "done"
@@ -146,8 +146,8 @@ function folderOf(cwd: string | undefined): string | null {
   return base || null;
 }
 
-export async function fetchFleet(signal?: AbortSignal): Promise<Fleet> {
-  const sessions = await call<RawSession[]>("/api/sessions", { signal });
+/** Shared by the HTTP fetch and the socket, so both produce identical agents. */
+export function toFleet(sessions: RawSession[]): Fleet {
   const agents: Agent[] = [];
   for (const session of sessions) {
     for (const window of session.windows ?? []) {
@@ -165,6 +165,10 @@ export async function fetchFleet(signal?: AbortSignal): Promise<Fleet> {
     }
   }
   return { agents, sessions: sessions.length };
+}
+
+export async function fetchFleet(signal?: AbortSignal): Promise<Fleet> {
+  return toFleet(await call<RawSession[]>("/api/sessions", { signal }));
 }
 
 export async function capture(target: string, signal?: AbortSignal): Promise<string> {
