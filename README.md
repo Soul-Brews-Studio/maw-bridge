@@ -62,5 +62,7 @@ bun run build
 bun run deploy   # Cloudflare Workers, static assets only
 ```
 
-The Worker serves files and nothing else. It never sees fleet data and never
-holds a token.
+It deploys as static assets only, with no Worker script: Cloudflare serves
+files directly, so there is nothing that could see fleet data or hold a token.
+Headers come from `public/_headers`, and SPA deep links from
+`not_found_handling`.
