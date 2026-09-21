@@ -1,5 +1,8 @@
 # Bridge
 
+[![Open Bridge](https://img.shields.io/badge/Open_Bridge-ffb224?style=for-the-badge&logoColor=black)](https://bridge.buildwithoracle.com)
+[![Build your own](https://img.shields.io/badge/Build_your_own-2ea44f?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Soul-Brews-Studio/maw-ui-template/generate)
+
 A departure board for a fleet of agents. It reads `maw herdr serve` and shows
 every pane as a row that flips when its status changes — with a live miniature
 of that pane's terminal on the left of every row.
